@@ -4,7 +4,9 @@ A complete Flask + HTML/CSS/JavaScript dashboard built from the supplied ONGC an
 
 ## Live dashboard
 
-Deploy this project to Render using the [Render Blueprint](https://render.com/deploy?repo=https%3A%2F%2Fgithub.com%2Fsindhujanaragam%2FONGC_Industrial_Analytics_Dashboard). Render will create a public web service from `render.yaml`. After deployment finishes, copy the service URL from the Render dashboard and share it to let others view the app.
+View the live dashboard: [https://ongc-industrial-analytics-dashboard.onrender.com](https://ongc-industrial-analytics-dashboard.onrender.com)
+
+To deploy your own instance, use the [Render Blueprint](https://render.com/deploy?repo=https%3A%2F%2Fgithub.com%2Fsindhujanaragam%2FONGC_Industrial_Analytics_Dashboard).
 
 ## Features
 - KPI dashboard
