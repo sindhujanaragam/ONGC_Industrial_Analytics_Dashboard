@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ONGC Industrial Analytics Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root{
+            --navy:#082032;
+            --blue:#0f5b78;
+            --cyan:#16a7c7;
+            --light:#f4f8fb;
+            --card:#ffffff;
+            --text:#173042;
+            --muted:#718394;
+            --line:#e4edf2;
+            --green:#16845b;
+            --orange:#e18b25;
+            --red:#d9534f;
+            --shadow:0 12px 30px rgba(8,32,50,.08);
+        }
+        *{box-sizing:border-box}
+        body{
+            margin:0;font-family:Inter,Segoe UI,Arial,sans-serif;
+            background:var(--light);color:var(--text);
+        }
+        .app{display:flex;min-height:100vh}
+        .sidebar{
+            width:250px;background:linear-gradient(180deg,#071e2e,#0a3448);
+            color:white;padding:24px 16px;position:fixed;left:0;top:0;bottom:0;
+            display:flex;flex-direction:column;z-index:10
+        }
+        .brand{display:flex;align-items:center;gap:12px;padding:6px 10px 28px}
+        .logo{
+            width:42px;height:42px;border-radius:12px;background:#fff;color:var(--navy);
+            display:grid;place-items:center;font-weight:900;font-size:14px
+        }
+        .brand h2{font-size:16px;margin:0}.brand span{font-size:11px;opacity:.7}
+        .nav button{
+            width:100%;border:0;background:transparent;color:#c8d7df;text-align:left;
+            padding:13px 14px;border-radius:10px;margin:3px 0;cursor:pointer;font-size:14px
+        }
+        .nav button.active,.nav button:hover{background:rgba(255,255,255,.12);color:white}
+        .sidebar-footer{margin-top:auto;font-size:11px;color:#9db2bd;padding:12px}
+        main{margin-left:250px;width:calc(100% - 250px);padding:28px}
+        .topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:24px}
+        .topbar h1{font-size:27px;margin:0 0 6px}.topbar p{margin:0;color:var(--muted);font-size:13px}
+        .status{background:#e8f6f1;color:var(--green);padding:9px 13px;border-radius:999px;font-size:12px;font-weight:700}
+        .filters{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:20px}
+        select,.input{
+            background:white;border:1px solid var(--line);border-radius:10px;padding:11px 13px;
+            color:var(--text);min-width:150px;outline:none
+        }
+        .btn{border:0;border-radius:10px;padding:11px 16px;cursor:pointer;font-weight:700}
+        .btn-primary{background:var(--blue);color:white}.btn-primary:hover{background:#0b4961}
+        .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:15px;margin-bottom:20px}
+        .kpi{background:var(--card);border:1px solid var(--line);border-radius:15px;padding:18px;box-shadow:var(--shadow)}
+        .kpi-label{font-size:12px;color:var(--muted);font-weight:700}.kpi-value{font-size:25px;font-weight:800;margin:8px 0 3px}.kpi-note{font-size:11px;color:var(--muted)}
+        .grid{display:grid;grid-template-columns:repeat(2,1fr);gap:18px;margin-bottom:18px}
+        .card{background:white;border:1px solid var(--line);border-radius:15px;padding:18px;box-shadow:var(--shadow)}
+        .card h3{font-size:15px;margin:0}.card .sub{font-size:11px;color:var(--muted);margin:5px 0 14px}
+        .chart-wrap{height:300px;position:relative}
+        .wide{grid-column:1/-1}
+        .insights{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+        .insight{padding:15px;border-radius:12px;background:#f8fbfd;border:1px solid var(--line)}
+        .insight strong{display:block;font-size:13px;margin-bottom:5px}.insight span{font-size:12px;color:var(--muted)}
+        .section{display:none}.section.active{display:block}
+        .table-wrap{overflow:auto;max-height:480px}
+        table{width:100%;border-collapse:collapse;font-size:12px}
+        th,td{padding:11px 9px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}
+        th{position:sticky;top:0;background:#f7fafc;color:#536b7a}
+        .badge{padding:4px 8px;border-radius:999px;background:#edf5f8;font-size:10px;font-weight:700}
+        .prediction-layout{display:grid;grid-template-columns:1.3fr .7fr;gap:18px}
+        .form-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+        label{font-size:11px;font-weight:700;color:#536b7a;display:block;margin-bottom:6px}
+        .field input,.field select{width:100%;min-width:0}
+        .result{
+            background:linear-gradient(145deg,#072c40,#0f607b);color:white;border-radius:15px;
+            padding:24px;min-height:260px;display:flex;flex-direction:column;justify-content:center
+        }
+        .result small{opacity:.75}.result .amount{font-size:36px;font-weight:900;margin:10px 0}.result p{font-size:12px;line-height:1.6;opacity:.85}
+        .metric-row{display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid rgba(255,255,255,.15);font-size:12px}
+        .empty{padding:30px;text-align:center;color:var(--muted)}
+        .toast{position:fixed;right:25px;bottom:25px;background:#0b2d3d;color:white;padding:12px 16px;border-radius:10px;display:none;z-index:50;font-size:12px}
+        @media(max-width:1100px){
+            .kpis{grid-template-columns:repeat(2,1fr)}.prediction-layout{grid-template-columns:1fr}
+        }
+        @media(max-width:800px){
+            .sidebar{width:70px;padding:18px 8px}.brand h2,.brand span,.nav button span,.sidebar-footer{display:none}
+            .brand{justify-content:center}.nav button{text-align:center;font-size:18px}.brand .logo{width:44px}
+            main{margin-left:70px;width:calc(100% - 70px);padding:18px}.grid{grid-template-columns:1fr}
+            .wide{grid-column:auto}.insights{grid-template-columns:1fr}.form-grid{grid-template-columns:1fr}
+        }
+    </style>
+</head>
+<body>
+<div class="app">
+    <aside class="sidebar">
+        <div class="brand">
+            <div class="logo">ONGC</div>
+            <div><h2>Industrial Analytics</h2><span>Data Intelligence Portal</span></div>
+        </div>
+        <div class="nav">
+            <button class="active" data-page="dashboard"><span>▣ &nbsp;</span>Dashboard</button>
+            <button data-page="production"><span>◒ &nbsp;</span>Production</button>
+            <button data-page="finance"><span>₹ &nbsp;</span>Financial Analytics</button>
+            <button data-page="operations"><span>⚙ &nbsp;</span>Operations</button>
+            <button data-page="safety"><span>⚠ &nbsp;</span>Safety</button>
+            <button data-page="prediction"><span>◆ &nbsp;</span>ML Prediction</button>
+            <button data-page="data"><span>▤ &nbsp;</span>Data Explorer</button>
+        </div>
+        <div class="sidebar-footer">Internship Project<br>Python • Flask • ML • Analytics</div>
+    </aside>
+
+    <main>
+        <div class="topbar">
+            <div>
+                <h1 id="pageTitle">Industrial Data Analytics Dashboard</h1>
+                <p>ONGC-style operational intelligence using the supplied 410-row analytics dataset.</p>
+            </div>
+            <div class="status">● SYSTEM ONLINE</div>
+        </div>
+
+        <section id="dashboard" class="section active">
+            <div class="filters">
+                <select id="regionFilter"><option>All</option>{% for r in regions %}<option>{{r}}</option>{% endfor %}</select>
+                <select id="yearFilter"><option>All</option>{% for y in years %}<option>{{y}}</option>{% endfor %}</select>
+                <button class="btn btn-primary" onclick="loadDashboard()">Apply Filters</button>
+            </div>
+            <div class="kpis" id="kpis"></div>
+            <div class="grid">
+                <div class="card wide"><h3>Production Trend</h3><div class="sub">Oil and gas production across the selected data</div><div class="chart-wrap"><canvas id="productionChart"></canvas></div></div>
+                <div class="card"><h3>Revenue vs Operational Cost</h3><div class="sub">Financial performance</div><div class="chart-wrap"><canvas id="financeChart"></canvas></div></div>
+                <div class="card"><h3>Regional Performance</h3><div class="sub">Average revenue by region</div><div class="chart-wrap"><canvas id="regionChart"></canvas></div></div>
+                <div class="card wide"><h3>Management Insights</h3><div class="sub">Quick observations from the filtered data</div><div class="insights" id="insights"></div></div>
+            </div>
+        </section>
+
+        <section id="production" class="section">
+            <div class="grid">
+                <div class="card wide"><h3>Oil & Gas Production</h3><div class="sub">Production trend from the supplied dataset</div><div class="chart-wrap"><canvas id="productionChart2"></canvas></div></div>
+                <div class="card"><h3>Oil Production by Region</h3><div class="sub">Average MMT</div><div class="chart-wrap"><canvas id="oilRegionChart"></canvas></div></div>
+                <div class="card"><h3>Wells Drilled by Region</h3><div class="sub">Total wells in selected data</div><div class="chart-wrap"><canvas id="wellsRegionChart"></canvas></div></div>
+            </div>
+        </section>
+
+        <section id="finance" class="section">
+            <div class="grid">
+                <div class="card wide"><h3>Revenue & Cost Trend</h3><div class="sub">Monthly/period financial comparison</div><div class="chart-wrap"><canvas id="financeChart2"></canvas></div></div>
+                <div class="card"><h3>Revenue Correlations</h3><div class="sub">Correlation of numeric factors with revenue</div><div class="chart-wrap"><canvas id="corrChart"></canvas></div></div>
+                <div class="card"><h3>Crude Oil Price</h3><div class="sub">Average crude oil price in selected records</div><div class="chart-wrap"><canvas id="crudeChart"></canvas></div></div>
+            </div>
+        </section>
+
+        <section id="operations" class="section">
+            <div class="grid">
+                <div class="card wide"><h3>Equipment Downtime by Region</h3><div class="sub">Average downtime hours</div><div class="chart-wrap"><canvas id="downtimeChart"></canvas></div></div>
+                <div class="card"><h3>Downtime Trend</h3><div class="sub">Operational downtime across the period</div><div class="chart-wrap"><canvas id="downtimeTrendChart"></canvas></div></div>
+                <div class="card"><h3>Wells Drilled</h3><div class="sub">Regional total</div><div class="chart-wrap"><canvas id="wellsChart2"></canvas></div></div>
+            </div>
+        </section>
+
+        <section id="safety" class="section">
+            <div class="grid">
+                <div class="card wide"><h3>Safety Incidents by Region</h3><div class="sub">Total reported incidents in the selected records</div><div class="chart-wrap"><canvas id="safetyChart"></canvas></div></div>
+                <div class="card wide"><h3>Safety & Downtime Overview</h3><div class="sub">Use this view to identify operational areas needing attention.</div><div class="insights" id="safetyInsights"></div></div>
+            </div>
+        </section>
+
+        <section id="prediction" class="section">
+            <div class="prediction-layout">
+                <div class="card">
+                    <h3>Revenue Prediction</h3>
+                    <div class="sub">Linear Regression model trained using the cleaned dataset and the same feature structure as the notebook.</div>
+                    <div class="form-grid">
+                        <div class="field"><label>Month</label><select id="pMonth">{% for m in ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"] %}<option>{{m}}</option>{% endfor %}</select></div>
+                        <div class="field"><label>Year</label><input class="input" id="pYear" type="number" value="2026"></div>
+                        <div class="field"><label>Region</label><select id="pRegion">{% for r in regions %}<option>{{r}}</option>{% endfor %}</select></div>
+                        <div class="field"><label>Oil Production (MMT)</label><input class="input" id="pOil" type="number" step="0.01" value="1.2"></div>
+                        <div class="field"><label>Gas Production (BCM)</label><input class="input" id="pGas" type="number" step="0.01" value="1.5"></div>
+                        <div class="field"><label>Wells Drilled</label><input class="input" id="pWells" type="number" value="6"></div>
+                        <div class="field"><label>Employees</label><input class="input" id="pEmployees" type="number" value="10400"></div>
+                        <div class="field"><label>Operational Cost (₹ Crore)</label><input class="input" id="pCost" type="number" value="550"></div>
+                        <div class="field"><label>Crude Oil Price (USD)</label><input class="input" id="pCrude" type="number" value="84"></div>
+                        <div class="field"><label>Equipment Downtime (Hours)</label><input class="input" id="pDown" type="number" value="12"></div>
+                        <div class="field"><label>Safety Incidents</label><input class="input" type="number" id="pSafety" value="1"></div>
+                    </div>
+                    <br>
+                    <button class="btn btn-primary" onclick="predictRevenue()">Predict Revenue</button>
+                </div>
+                <div class="result">
+                    <small>MODEL OUTPUT</small>
+                    <div class="amount" id="predictionAmount">₹ —</div>
+                    <p id="predictionText">Enter operational values and run the prediction.</p>
+                    <div class="metric-row"><span>Model</span><strong id="modelName">Linear Regression</strong></div>
+                    <div class="metric-row"><span>R²</span><strong>{{model_r2}}</strong></div>
+                    <div class="metric-row"><span>MAE</span><strong>₹ {{model_mae}} Cr</strong></div>
+                    <div class="metric-row"><span>RMSE</span><strong>₹ {{model_rmse}} Cr</strong></div>
+                </div>
+            </div>
+        </section>
+
+        <section id="data" class="section">
+            <div class="card">
+                <h3>Data Explorer</h3><div class="sub">First 100 records from the selected filters</div>
+                <div class="table-wrap"><table><thead><tr><th>Month</th><th>Year</th><th>Region</th><th>Oil</th><th>Gas</th><th>Wells</th><th>Revenue</th><th>Cost</th><th>Downtime</th><th>Safety</th></tr></thead><tbody id="dataTable"></tbody></table></div>
+            </div>
+        </section>
+    </main>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+let dataCache = null;
+const charts = {};
+
+function destroyChart(id){ if(charts[id]){charts[id].destroy(); delete charts[id];} }
+function makeChart(id, type, labels, datasets, extra={}) {
+    destroyChart(id);
+    const el=document.getElementById(id); if(!el) return;
+    charts[id]=new Chart(el,{type,data:{labels,datasets},options:{
+        responsive:true,maintainAspectRatio:false,
+        plugins:{legend:{position:'bottom',labels:{boxWidth:12,font:{size:10}}}},
+        scales:type==='doughnut'?{}:{x:{grid:{display:false}},y:{beginAtZero:true,grid:{color:'#edf2f5'}}},
+        ...extra
+    }});
+}
+function num(v){return Number(v||0).toLocaleString('en-IN',{maximumFractionDigits:2});}
+function money(v){return '₹ '+Number(v||0).toLocaleString('en-IN',{maximumFractionDigits:0})+' Cr';}
+
+async function loadDashboard(){
+    const region=document.getElementById('regionFilter').value;
+    const year=document.getElementById('yearFilter').value;
+    const res=await fetch(`/api/dashboard?region=${encodeURIComponent(region)}&year=${encodeURIComponent(year)}`);
+    const d=await res.json();
+    if(!res.ok){toast(d.error);return;}
+    dataCache=d; renderAll(d);
+}
+function renderAll(d){
+    const k=d.kpis;
+    document.getElementById('kpis').innerHTML=`
+      <div class="kpi"><div class="kpi-label">OIL PRODUCTION</div><div class="kpi-value">${num(k.oil)}</div><div class="kpi-note">MMT • selected records</div></div>
+      <div class="kpi"><div class="kpi-label">GAS PRODUCTION</div><div class="kpi-value">${num(k.gas)}</div><div class="kpi-note">BCM • selected records</div></div>
+      <div class="kpi"><div class="kpi-label">REVENUE</div><div class="kpi-value">${money(k.revenue)}</div><div class="kpi-note">aggregate revenue</div></div>
+      <div class="kpi"><div class="kpi-label">OPERATIONAL COST</div><div class="kpi-value">${money(k.cost)}</div><div class="kpi-note">aggregate cost</div></div>
+      <div class="kpi"><div class="kpi-label">WELLS DRILLED</div><div class="kpi-value">${num(k.wells)}</div><div class="kpi-note">total wells</div></div>
+      <div class="kpi"><div class="kpi-label">DOWNTIME</div><div class="kpi-value">${num(k.downtime)}</div><div class="kpi-note">equipment hours</div></div>
+      <div class="kpi"><div class="kpi-label">SAFETY INCIDENTS</div><div class="kpi-value">${num(k.safety)}</div><div class="kpi-note">reported incidents</div></div>
+      <div class="kpi"><div class="kpi-label">AVG CRUDE PRICE</div><div class="kpi-value">$${num(k.crude)}</div><div class="kpi-note">USD per selected record</div></div>`;
+
+    const labels=d.monthly.map(x=>`${x.Month} ${x.Year}`);
+    makeChart('productionChart','line',labels,[
+      {label:'Oil (MMT)',data:d.monthly.map(x=>x.oil),tension:.35,borderWidth:2},
+      {label:'Gas (BCM)',data:d.monthly.map(x=>x.gas),tension:.35,borderWidth:2}
+    ]);
+    makeChart('financeChart','bar',labels,[
+      {label:'Revenue (₹ Cr)',data:d.monthly.map(x=>x.revenue),borderRadius:5},
+      {label:'Cost (₹ Cr)',data:d.monthly.map(x=>x.cost),borderRadius:5}
+    ]);
+    const regs=d.region_summary.map(x=>x.Region);
+    makeChart('regionChart','bar',regs,[{label:'Avg Revenue (₹ Cr)',data:d.region_summary.map(x=>x.revenue),borderRadius:5}]);
+    renderInsights(d);
+    renderProduction(d); renderFinance(d); renderOperations(d); renderSafety(d); renderTable(d);
+}
+function renderInsights(d){
+    const top=d.region_summary[0];
+    const maxDown=d.downtime_by_region[0];
+    const maxSafe=d.safety_by_region[0];
+    document.getElementById('insights').innerHTML=`
+      <div class="insight"><strong>Top revenue region</strong><span>${top?top.Region:'—'} with average revenue of ${top?money(top.revenue):'—'}.</span></div>
+      <div class="insight"><strong>Highest downtime</strong><span>${maxDown?maxDown.Region:'—'} averages ${maxDown?num(maxDown.Equipment_Downtime_Hours):'—'} equipment hours.</span></div>
+      <div class="insight"><strong>Safety attention</strong><span>${maxSafe?maxSafe.Region:'—'} has ${maxSafe?num(maxSafe.Safety_Incidents):'—'} recorded incidents.</span></div>`;
+}
+function renderProduction(d){
+    const labels=d.monthly.map(x=>`${x.Month} ${x.Year}`);
+    makeChart('productionChart2','line',labels,[
+      {label:'Oil (MMT)',data:d.monthly.map(x=>x.oil),tension:.3,borderWidth:2},
+      {label:'Gas (BCM)',data:d.monthly.map(x=>x.gas),tension:.3,borderWidth:2}
+    ]);
+    const r=d.region_summary.map(x=>x.Region);
+    makeChart('oilRegionChart','bar',r,[{label:'Avg Oil (MMT)',data:d.region_summary.map(x=>x.oil),borderRadius:5}]);
+    makeChart('wellsRegionChart','bar',r,[{label:'Wells',data:d.region_summary.map(x=>x.wells),borderRadius:5}]);
+}
+function renderFinance(d){
+    const labels=d.monthly.map(x=>`${x.Month} ${x.Year}`);
+    makeChart('financeChart2','line',labels,[
+      {label:'Revenue (₹ Cr)',data:d.monthly.map(x=>x.revenue),tension:.3,borderWidth:2},
+      {label:'Cost (₹ Cr)',data:d.monthly.map(x=>x.cost),tension:.3,borderWidth:2}
+    ]);
+    const c=d.correlation;
+    makeChart('corrChart','bar',c.map(x=>x.feature.replaceAll('_',' ')),[{label:'Correlation',data:c.map(x=>x.value),borderRadius:4}],{indexAxis:'y'});
+    makeChart('crudeChart','line',labels,[{label:'Crude Price (USD)',data:d.monthly.map(x=>x.crude||0),borderWidth:2,tension:.3}]);
+}
+function renderOperations(d){
+    const r=d.downtime_by_region.map(x=>x.Region);
+    makeChart('downtimeChart','bar',r,[{label:'Avg Downtime (Hours)',data:d.downtime_by_region.map(x=>x.Equipment_Downtime_Hours),borderRadius:5}]);
+    const labels=d.monthly.map(x=>`${x.Month} ${x.Year}`);
+    makeChart('downtimeTrendChart','line',labels,[{label:'Downtime',data:d.monthly.map(x=>x.downtime),borderWidth:2,tension:.3}]);
+    makeChart('wellsChart2','bar',d.region_summary.map(x=>x.Region),[{label:'Wells',data:d.region_summary.map(x=>x.wells),borderRadius:5}]);
+}
+function renderSafety(d){
+    const r=d.safety_by_region.map(x=>x.Region);
+    makeChart('safetyChart','bar',r,[{label:'Safety Incidents',data:d.safety_by_region.map(x=>x.Safety_Incidents),borderRadius:5}]);
+    const maxSafe=d.safety_by_region[0], maxDown=d.downtime_by_region[0];
+    document.getElementById('safetyInsights').innerHTML=`
+      <div class="insight"><strong>Highest incident area</strong><span>${maxSafe?maxSafe.Region:'—'} — ${maxSafe?maxSafe.Safety_Incidents:0} incidents.</span></div>
+      <div class="insight"><strong>Highest downtime area</strong><span>${maxDown?maxDown.Region:'—'} — ${maxDown?num(maxDown.Equipment_Downtime_Hours):0} hours average.</span></div>
+      <div class="insight"><strong>Safety monitoring</strong><span>Use regional trends to prioritize operational review and preventive actions.</span></div>`;
+}
+function renderTable(d){
+    document.getElementById('dataTable').innerHTML=d.table.map(r=>`
+      <tr><td>${r.month}</td><td>${r.year}</td><td><span class="badge">${r.region}</span></td>
+      <td>${r.oil}</td><td>${r.gas}</td><td>${r.wells}</td><td>${money(r.revenue)}</td>
+      <td>${money(r.cost)}</td><td>${r.downtime}</td><td>${r.safety}</td></tr>`).join('');
+}
+async function predictRevenue(){
+    const payload={
+      Month:document.getElementById('pMonth').value, Year:document.getElementById('pYear').value,
+      Region:document.getElementById('pRegion').value, Oil_Production_MMT:document.getElementById('pOil').value,
+      Gas_Production_BCM:document.getElementById('pGas').value, Wells_Drilled:document.getElementById('pWells').value,
+      Employees:document.getElementById('pEmployees').value, Operational_Cost_Crore:document.getElementById('pCost').value,
+      Crude_Oil_Price_USD:document.getElementById('pCrude').value, Equipment_Downtime_Hours:document.getElementById('pDown').value,
+      Safety_Incidents:document.getElementById('pSafety').value
+    };
+    const res=await fetch('/api/predict',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+    const d=await res.json();
+    if(!res.ok){toast(d.error);return;}
+    document.getElementById('predictionAmount').textContent=money(d.prediction);
+    document.getElementById('predictionText').textContent='Estimated revenue based on the entered operational and financial indicators.';
+    document.getElementById('modelName').textContent=d.model;
+}
+function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.style.display='block';setTimeout(()=>t.style.display='none',3000)}
+document.querySelectorAll('.nav button').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+        document.querySelectorAll('.nav button').forEach(b=>b.classList.remove('active'));
+        btn.classList.add('active');
+        document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+        const page=btn.dataset.page;
+        document.getElementById(page).classList.add('active');
+        document.getElementById('pageTitle').textContent=btn.innerText.trim();
+    });
+});
+loadDashboard();
+</script>
+</body>
+</html>
